@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import API from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+import { toast } from "react-toastify";
 
 export default function Projects() {
     const { user } = useAuth();
@@ -30,9 +31,11 @@ export default function Projects() {
             await API.post("/projects", newProject);
             setShowModal(false);
             setNewProject({ name: "", description: "" });
+            toast.success("Project created successfully!");
             fetchProjects();
         } catch (err) {
             setError(err.response?.data?.message || "Failed to create project");
+            toast.error(err.response?.data?.message || "Failed to create project");
         }
     };
 

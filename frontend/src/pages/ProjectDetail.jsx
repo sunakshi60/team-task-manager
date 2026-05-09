@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import API from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+import { toast } from "react-toastify";
 
 export default function ProjectDetail() {
     const { id } = useParams();
@@ -19,6 +20,7 @@ export default function ProjectDetail() {
     const [newMemberEmail, setNewMemberEmail] = useState("");
     const [usersList, setUsersList] = useState([]);
     const [error, setError] = useState("");
+    const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: "", message: "", onConfirm: null });
 
     useEffect(() => {
         fetchProjectData();
@@ -62,9 +64,11 @@ export default function ProjectDetail() {
             await API.post("/tasks", { ...newTask, projectId: id });
             setShowTaskModal(false);
             setNewTask({ title: "", description: "", priority: "medium", dueDate: "", assignedTo: "" });
+            toast.success("Task created successfully!");
             fetchProjectData();
         } catch (err) {
             setError(err.response?.data?.message || "Failed to create task");
+            toast.error(err.response?.data?.message || "Failed to create task");
         }
     };
 
@@ -75,18 +79,26 @@ export default function ProjectDetail() {
             await API.post(`/projects/${id}/members`, { email: newMemberEmail });
             setShowMemberModal(false);
             setNewMemberEmail("");
+            toast.success("Member added successfully!");
             fetchProjectData();
         } catch (err) {
             setError(err.response?.data?.message || "Failed to add member");
+            toast.error(err.response?.data?.message || "Failed to add member");
         }
     };
 
     const updateTaskStatus = async (taskId, newStatus) => {
         try {
             await API.put(`/tasks/${taskId}`, { status: newStatus });
+            if (newStatus === "done") {
+                toast.success("Task marked as done! 🎉");
+            } else {
+                toast.info(`Task moved to ${newStatus.replace("-", " ")}`);
+            }
             fetchProjectData(); // refresh tasks
         } catch (err) {
             console.error("Failed to update status", err);
+            toast.error("Failed to update task status");
         }
     };
 
@@ -95,38 +107,56 @@ export default function ProjectDetail() {
             await API.put(`/tasks/${taskId}`, { assignedTo: null });
             fetchProjectData();
             setSelectedTask(prev => prev ? { ...prev, assignedTo: null } : null);
+            toast.info("User removed from task");
         } catch (err) {
             console.error("Failed to unassign task", err);
+            toast.error("Failed to unassign task");
         }
     };
 
     const handleDeleteTask = async (taskId) => {
-        if (!window.confirm("Are you sure you want to delete this task?")) return;
-        try {
-            await API.delete(`/tasks/${taskId}`);
-            fetchProjectData();
-            setSelectedTask(null);
-        } catch (err) {
-            console.error("Failed to delete task", err);
-        }
+        setConfirmModal({
+            isOpen: true,
+            title: "Delete Task",
+            message: "Are you sure you want to delete this task?",
+            onConfirm: async () => {
+                try {
+                    await API.delete(`/tasks/${taskId}`);
+                    fetchProjectData();
+                    setSelectedTask(null);
+                    toast.success("Task deleted successfully");
+                } catch (err) {
+                    console.error("Failed to delete task", err);
+                    toast.error("Failed to delete task");
+                }
+            }
+        });
     };
 
     const handleRemoveMember = async (memberId) => {
-        if (!window.confirm("Are you sure you want to remove this user from the project? This will also unassign them from any tasks.")) return;
-        try {
-            const updatedMembers = project.members.filter(m => m._id !== memberId).map(m => m._id);
-            await API.put(`/projects/${id}`, { members: updatedMembers });
+        setConfirmModal({
+            isOpen: true,
+            title: "Remove Member",
+            message: "Are you sure you want to remove this user from the project? This will also unassign them from any tasks.",
+            onConfirm: async () => {
+                try {
+                    const updatedMembers = project.members.filter(m => m._id !== memberId).map(m => m._id);
+                    await API.put(`/projects/${id}`, { members: updatedMembers });
 
-            // Unassign tasks assigned to this user in this project
-            const tasksToUnassign = tasks.filter(t => t.assignedTo?._id === memberId);
-            for (const task of tasksToUnassign) {
-                await API.put(`/tasks/${task._id}`, { assignedTo: null });
+                    // Unassign tasks assigned to this user in this project
+                    const tasksToUnassign = tasks.filter(t => t.assignedTo?._id === memberId);
+                    for (const task of tasksToUnassign) {
+                        await API.put(`/tasks/${task._id}`, { assignedTo: null });
+                    }
+
+                    toast.info("Member removed from project");
+                    fetchProjectData();
+                } catch (err) {
+                    console.error("Failed to remove member", err);
+                    toast.error("Failed to remove member");
+                }
             }
-
-            fetchProjectData();
-        } catch (err) {
-            console.error("Failed to remove member", err);
-        }
+        });
     };
 
     if (loading) return (
@@ -415,6 +445,32 @@ export default function ProjectDetail() {
                                 <div></div>
                             )}
                             <button onClick={() => setSelectedTask(null)} className="px-5 py-2.5 bg-white/10 text-slate-200 font-medium hover:bg-white/20 rounded-xl transition-colors">Close</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {confirmModal.isOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+                    <div className="bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] p-6 w-full max-w-sm animate-in fade-in zoom-in duration-200">
+                        <h2 className="text-xl font-bold text-slate-100 mb-2">{confirmModal.title}</h2>
+                        <p className="text-slate-300 text-sm mb-6">{confirmModal.message}</p>
+                        <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                            <button
+                                onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                                className="px-4 py-2 text-slate-300 font-medium hover:bg-white/5 rounded-lg transition-colors text-sm"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    confirmModal.onConfirm();
+                                    setConfirmModal({ ...confirmModal, isOpen: false });
+                                }}
+                                className="px-5 py-2 bg-rose-500 hover:bg-rose-600 text-white font-medium rounded-lg shadow-[0_0_15px_rgba(225,29,72,0.4)] transition-all text-sm"
+                            >
+                                Confirm
+                            </button>
                         </div>
                     </div>
                 </div>

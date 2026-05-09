@@ -2,7 +2,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
-
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/DashBoard";
@@ -14,6 +15,7 @@ function App() {
         <AuthProvider>
             <Router>
                 <div className="min-h-screen bg-mesh text-slate-200 font-sans antialiased selection:bg-indigo-500 selection:text-white">
+                    <ToastContainer theme="dark" position="bottom-right" />
                     <Routes>
                         <Route path="/login" element={<Login />} />
                         <Route path="/register" element={<Register />} />
