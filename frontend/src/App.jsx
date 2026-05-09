@@ -13,7 +13,7 @@ function App() {
     return (
         <AuthProvider>
             <Router>
-                <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+                <div className="min-h-screen bg-mesh text-slate-200 font-sans antialiased selection:bg-indigo-500 selection:text-white">
                     <Routes>
                         <Route path="/login" element={<Login />} />
                         <Route path="/register" element={<Register />} />
